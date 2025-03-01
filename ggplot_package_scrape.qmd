@@ -1,6 +1,8 @@
 ---
 title: "ggplot_package_scrape"
-format: html
+format:
+  html:
+    embed-resources: true
 editor: visual
 ---
 
@@ -21,7 +23,7 @@ library(packageRank)
 Read in the downloaded tidyverse gallery page html file. Must download webpage for the github star scrape to work properly.
 
 ```{r}
-df <- read_html("/Users/vivzh/OneDrive/Documents/gg_work/exts.ggplot2.tidyverse.org.html")
+df <- read_html("raw_data/exts.ggplot2.tidyverse.org.html")
 ```
 
 Scrape the package name and store in a package_names vector.
@@ -77,7 +79,7 @@ Store data in a new dataframe and export as csv.
 
 ```{r}
 gallery_packages <- data.frame(package = package_names, stars = github_stars, downloads = downloads_count, gallery = TRUE)
-write_csv(gallery_packages, "/Users/vivzh/OneDrive/Documents/gg_work/gallery_packages.csv")
+write_csv(gallery_packages, "generated_data/gallery_packages.csv")
 ```
 
 ## CRAN Packages Webpage
@@ -85,7 +87,7 @@ write_csv(gallery_packages, "/Users/vivzh/OneDrive/Documents/gg_work/gallery_pac
 Read in the downloaded CRAN packages (alphabetical order) page html file.
 
 ```{r}
-df <- read_html("/Users/vivzh/OneDrive/Documents/gg_work/CRAN_ Available Packages By Name.html")
+df <- read_html("raw_data/CRAN_ Available Packages By Name.html")
 ```
 
 Scrape packages names from page and stores as names.
@@ -108,7 +110,7 @@ gg_package_names <- names[gg_start:gg_end]
 Remove packages that start with gg but are not relevant to ggplot2. Such names were found manually and saved in csv file.
 
 ```{r}
-remove_packages <- read.csv("non_ggplot_packages.csv")[[1]]
+remove_packages <- read.csv("raw_data/non_ggplot_packages.csv")[[1]]
 
 ggplot_package_names <- gg_package_names[!gg_package_names %in% remove_packages]
 ```
@@ -140,7 +142,7 @@ gg_descriptions <- desc_gg[c(FALSE, TRUE)] #Select only descriptions (remove pac
 Remove descriptions of packages starting with gg but not relevant to ggplot2. Found manually and saved in csv file.
 
 ```{r}
-remove_desc <- read.csv("non_ggplot_desc.csv")[[1]]
+remove_desc <- read.csv("raw_data/non_ggplot_desc.csv")[[1]]
 
 ggplot_descriptions <- gg_descriptions[!gg_descriptions %in% remove_desc]
 ```
@@ -148,6 +150,7 @@ ggplot_descriptions <- gg_descriptions[!gg_descriptions %in% remove_desc]
 Found additional ggplot packages that do not start with gg. Saved names and descriptions in csv files that can be read in for the future.
 
 ```{r}
+#| echo: true
 non_gg_desc <- desc[c(1:(first_gg-1), (end_gg+1):length(desc))] #non gg package names
 gg_indices <- grep('ggplot', non_gg_desc)[-1] #found indices at which the description or name contains 'ggplot', removes first index due to duplicity
 gg_indices <- gg_indices[-match(30865, gg_indices)] #removes duplicate index where name and desc both contain 'ggplot'
@@ -161,15 +164,15 @@ add_ggplot_names <- non_gg_desc[gg_indices-1] #names are at the elements -1 befo
 add_ggplot_desc <- non_gg_desc[gg_indices]
 
 #save down additional names and desc for future reference
-write_csv(data.frame(names = add_ggplot_names, indices = gg_indices-1), "add_ggplot_names.csv")
-write_csv(data.frame(desc = add_ggplot_desc, indices = gg_indices), "add_ggplot_desc.csv")
+write_csv(data.frame(names = add_ggplot_names, indices = gg_indices-1), "raw_data/add_ggplot_names.csv")
+write_csv(data.frame(desc = add_ggplot_desc, indices = gg_indices), "raw_data/add_ggplot_desc.csv")
 ```
 
 Add additional ggplot package names and descriptions found in process above.
 
 ```{r}
-add_gg_names <- read.csv("add_ggplot_names.csv")[[1]]
-add_gg_desc <- read.csv("add_ggplot_desc.csv")[[1]]
+add_gg_names <- read.csv("raw_data/add_ggplot_names.csv")[[1]]
+add_gg_desc <- read.csv("raw_data/add_ggplot_desc.csv")[[1]]
 
 all_ggplot_packages <- c(ggplot_package_names, add_gg_names)
 all_ggplot_desc <- c(ggplot_descriptions, add_gg_desc)
@@ -193,7 +196,7 @@ Save data in new dataframe cran_packages and store as csv file.
 
 ```{r}
 cran_packages <- data.frame(package = all_ggplot_packages, description = all_ggplot_desc, downloads = downloads_count, CRAN = TRUE)
-write_csv(cran_packages, "/Users/vivzh/OneDrive/Documents/gg_work/cran_packages.csv")
+write_csv(cran_packages, "generated_data/cran_packages.csv")
 ```
 
 ## Merge tidyverse gallery and cran packages
@@ -201,15 +204,17 @@ write_csv(cran_packages, "/Users/vivzh/OneDrive/Documents/gg_work/cran_packages.
 Read in and merge the data on ggplot packages to store in a new dataframe, packages.
 
 ```{r}
-gallery_packages <- read_csv("/Users/vivzh/OneDrive/Documents/gg_work/gallery_packages.csv")
+gallery_packages <- read_csv("generated_data/gallery_packages.csv")
 
-cran_packages <- read_csv("/Users/vivzh/OneDrive/Documents/gg_work/cran_packages.csv")
+cran_packages <- read_csv("generated_data/gg_work/cran_packages.csv")
 
 packages <- full_join(gallery_packages, cran_packages, by = c("package", "downloads"))
 ```
 
-Sort by download count.
+Sort by download count and save.
 
 ```{r}
 sorted_packages <- arrange(packages, desc(downloads))
+
+write_csv(sorted_packages, "generated_data/all_packages.csv")
 ```

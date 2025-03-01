@@ -22,8 +22,6 @@ dc_history_plot <- ggplot(dc_top_packages, aes(x = date, y = count, color = pack
 dc_history_plotly <- ggplotly(dc_history_plot)
 dc_history_plotly
 
-htmlwidgets::saveWidget(as_widget(dc_history_plotly), "generated_data/plots/dc_history_plotly.html")
-
 #plot for max download count dates
 max_date_df <- dc_top_packages %>%
   group_by(package) %>%
@@ -37,8 +35,6 @@ max_dc_plot <- ggplot(max_date_df, aes(x = max_date, y = max_downloads, color = 
 max_dc_plotly <- ggplotly(max_dc_plot)
 max_dc_plotly
 
-htmlwidgets::saveWidget(as_widget(max_dc_plotly), "generated_data/plots/max_dc_plotly.html")
-
 #plot for average download counts per date
 average_dc <- dc_cran_packages %>%
   group_by(date) %>%
@@ -50,7 +46,6 @@ average_dc_plot <- ggplot(average_dc, aes(x = date, y = average_dc)) +
 
 average_dc_plotly <- ggplotly(average_dc_plot)
 average_dc_plotly
-htmlwidgets::saveWidget(as_widget(average_dc_plotly), "generated_data/plots/average_dc_plotly.html")
 
 #create seasonal plots by month and day of week
 seasonal_data <- dc_top_packages %>%
@@ -62,11 +57,9 @@ dc_monthly <- ggplot(seasonal_data, aes(x = month, y = count)) +
   ylim(0, 5000) +
   labs(title = "Months in Downloads", x = "Month", y = "Download Count")
 dc_monthly
-ggsave("generated_data/plots/dc_monthly.png")
 
 dc_daily <- ggplot(seasonal_data, aes(x = day_of_week, y = count)) +
   geom_boxplot() +
   ylim(0, 5000) +
   labs(title = "Days of the Week in Downloads", x = "Day of Week", y = "Download Count")
 dc_daily
-ggsave("generated_data/plots/dc_daily.png")
