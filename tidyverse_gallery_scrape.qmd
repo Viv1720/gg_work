@@ -1,0 +1,89 @@
+---
+title: "tidyverse_package_scrape"
+format:
+  html:
+    embed-resources: true
+editor: visual
+---
+
+The following code is designed to scrape the names of packages in the ggplot environment from the tidyverse gallery (https://exts.ggplot2.tidyverse.org/gallery/) and then retrieve the cumulative historical cran download count for each. It also scrapes the github star count listed for these packages.
+
+## Tidyverse Gallery Scrape
+
+First import the necessary packages:
+
+```{r}
+library(tidyverse)
+library(rvest) #html webscraping
+library(packageRank) #to retrieve CRAN download counts
+```
+
+Read in the downloaded tidyverse gallery page html file. Must download webpage for the github star scrape to work properly.
+
+```{r}
+df <- read_html("raw_data/exts.ggplot2.tidyverse.org.html")
+```
+
+Scrape the package names and store in a package_names vector.
+
+```{r}
+package_names <- df |>
+  html_elements("div.card-content") |> 
+  html_elements("span.card-title") |> 
+  html_text()
+```
+
+The below function get_total_downloads takes in a package name and a date parameter to retrieve a cumulative count of that package's cran downloads up until that date by utilizing the cranDownloads function of packageRank.
+
+```{r}
+get_total_downloads <- function(pkg, date) {
+  #to = 2025 pulls entire download history
+  cd <- cranDownloads(packages = pkg, to = 2025) 
+  
+  #retrieving the 'cumulative' value of a particular date gets total download    count up to that date
+  cd$cranlogs.data$cumulative [ 
+    cd$cranlogs.data$date == date 
+  ]
+}
+```
+
+To find the most current total historical download count, set a target_date of two days before today. Depending on the time of day, cranDownloads is updated to either 1 or 2 days previous to the current day.
+
+```{r}
+target_date <- Sys.Date()-2
+```
+
+Retrieve cran download count for each package by looping across package_names and store in a new vector called downloads_count. Directly passing in a package_names vector into cranDownloads function does not work properly. Will take a few minutes to complete.
+
+```{r}
+downloads_count <- numeric(length(package_names))
+
+#cranDownloads sometimes will throw an error that terminates the loop if not handled properly
+for (i in seq_along(package_names)) {
+  dc <- tryCatch(
+    get_total_downloads(package_names[i], target_date),
+    
+    #if the package is not found in cran return NA
+    error = function(e) NA
+  )
+  downloads_count[i] <- ifelse(length(dc) == 0, NA, dc)
+}
+```
+
+Scrape github star count from the gallery webpage.
+
+```{r}
+github_stars <- df |> 
+  html_elements("span.github-btn") |>
+  html_elements("a.gh-count") |> 
+  html_text() |> as.numeric()
+```
+
+Store data in a new dataframe with a column indicating gallery as the source and export as csv.
+
+```{r}
+gallery_packages <- data.frame(package = package_names, stars = github_stars, downloads = downloads_count, gallery = TRUE)
+
+head(gallery_packages)
+write_csv(gallery_packages, "generated_data/gallery_packages.csv")
+```

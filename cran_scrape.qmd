@@ -1,0 +1,176 @@
+---
+title: "cran_scrape"
+format:
+  html:
+    embed-resources: true
+editor: visual
+---
+
+The following code is designed to scrape the names of packages in the ggplot environment from the CRAN page (https://cran.r-project.org/web/packages/available_packages_by_name.html) to then retrieve the cumulative historical cran download count for each.
+
+## CRAN Packages Webpage
+
+First import the necessary packages:
+
+```{r}
+library(tidyverse)
+library(rvest) #html webscraping
+library(packageRank) #to retrieve CRAN download counts
+```
+
+Read in the downloaded CRAN packages (alphabetical order) page html file.
+
+```{r}
+df <- read_html("raw_data/CRAN_ Available Packages By Name.html")
+```
+
+Scrape all packages names from the page.
+
+```{r}
+names <- df |>
+  html_elements("span.CRAN") |> 
+  html_text()
+```
+
+Filter for the names that start with gg by finding the index boundaries and store in gg_package_names.
+
+```{r}
+#beginning index for 'gg' names
+gg_start <- which(substr(names, 1, 2) == "gg")[1] 
+#end index for 'gg' names
+gg_end <- which(substr(names, 1, 2) == "gh")[1] - 1 
+
+gg_package_names <- names[gg_start:gg_end]
+```
+
+Remove packages that start with gg but are not relevant to ggplot2. These names were determined manually and saved in the 'non_ggplot_packages.csv' file.
+
+```{r}
+remove_packages <- read.csv("raw_data/non_ggplot_packages.csv")[[1]]
+
+ggplot_package_names <- gg_package_names[!gg_package_names %in% remove_packages]
+```
+
+Scrape all package descriptions from the page. The resulting vector elements alternate between a package name and its description (e.g. 'ggplot2', 'Create Elegant Data Visualisations Using the Grammar of Graphics', 'ggplot2.utils', etc.), and is offset by a "" element between every letter change (e.g. between the end of all 'a' names and start of 'b' names).
+
+```{r}
+#returns a vector that alternates between package names and their descriptions
+desc <- df |>
+  html_elements("div.container") |> 
+  html_elements("table") |> 
+  html_elements("tbody") |> 
+  html_elements("tr") |> 
+  html_elements("td") |> 
+  html_text()
+```
+
+Filter for only the packages with names that start with 'gg' by identifying index boundaries, and remove package names, keeping only descriptions, by retaining every other element to store in new vector.
+
+```{r}
+#beginning index for 'gg' names in descriptions
+first_gg <- which(substr(desc, 1, 2) == "gg")[1] 
+
+#end index for 'gg' names in descriptions
+end_gg <- which(substr(desc, 1, 2) == "gh")[1] - 1 
+
+desc_gg <- desc[first_gg:end_gg]
+
+#Select only descriptions (remove package names) by storing every other element
+gg_descriptions <- desc_gg[c(FALSE, TRUE)] 
+```
+
+Remove descriptions of packages starting with gg but not relevant to ggplot2. Found manually and saved in 'non_ggplot_desc.csv' file.
+
+```{r}
+remove_desc <- read.csv("raw_data/non_ggplot_desc.csv")[[1]]
+
+ggplot_descriptions <- gg_descriptions[!gg_descriptions %in% remove_desc]
+```
+
+The following block of code finds additional ggplot packages that do not start with gg. The names and descriptions are saved in csv files that can be read in for the future.
+
+```{r}
+#| echo: true
+
+#finds all non gg package names
+non_gg_desc <- desc[c(1:(first_gg-1), (end_gg+1):length(desc))] 
+
+#found indices at which either the description or name contains 'ggplot', removes the first index since it is a duplicate
+gg_indices <- grep('ggplot', non_gg_desc)[-1] 
+
+#removes a known duplicate index where name and desc both contain 'ggplot'
+gg_indices <- gg_indices[-match(30865, gg_indices)] 
+
+
+#replaces manually found indices at which the name contains 'ggplot' with the indices of their descriptions
+replace <- c(13588, 20251, 29832)
+for (num in replace) {
+  pos <- match(num, gg_indices)
+  gg_indices[pos] <- gg_indices[pos] + 1
+}
+
+#names are at the elements -1 before each desc
+add_ggplot_names <- non_gg_desc[gg_indices-1] 
+add_ggplot_desc <- non_gg_desc[gg_indices]
+
+#save down additional names and desc for future reference
+write_csv(data.frame(names = add_ggplot_names, indices = gg_indices-1), "raw_data/add_ggplot_names.csv")
+write_csv(data.frame(desc = add_ggplot_desc, indices = gg_indices), "raw_data/add_ggplot_desc.csv")
+```
+
+Add the additional ggplot package names and descriptions found and saved in the code block above.
+
+```{r}
+add_gg_names <- read.csv("raw_data/add_ggplot_names.csv")[[1]]
+add_gg_desc <- read.csv("raw_data/add_ggplot_desc.csv")[[1]]
+
+all_ggplot_packages <- c(ggplot_package_names, add_gg_names)
+all_ggplot_desc <- c(ggplot_descriptions, add_gg_desc)
+```
+
+The below function get_total_downloads takes in a package name and a date parameter to retrieve a cumulative count of that package's cran downloads up until that date by utilizing the cranDownloads function of packageRank.
+
+```{r}
+get_total_downloads <- function(pkg, date) {
+  
+  #to = 2025 pulls entire download history
+  cd <- cranDownloads(packages = pkg, to = 2025)
+  
+  #retrieving the 'cumulative' value of a particular date gets total download   count up to that date
+  cd$cranlogs.data$cumulative [ 
+    cd$cranlogs.data$date == date
+  ]
+}
+```
+
+To find the most current total historical download count, set a target_date of two days before today. Depending on the time of day, cranDownloads is updated to either 1 or 2 days previous to the current day.
+
+```{r}
+target_date <- Sys.Date()-2
+```
+
+Retrieve historic cran download count for each package by looping across package names and store in a new vector called downloads_count. Directly passing in a vector of package names into cranDownloads function does not work properly. Will take a few minutes to complete.
+
+```{r}
+downloads_count <- numeric(length(all_ggplot_packages))
+
+#cranDownloads sometimes will throw an error that terminates the loop if not handled properly
+for (i in seq_along(all_ggplot_packages)) {
+  dc <- tryCatch(
+    get_total_downloads(all_ggplot_packages[i], target_date),
+    
+    #if the package is not found in cran return NA
+    error = function(e) NA
+  )
+  downloads_count[i] <- ifelse(length(dc) == 0, NA, dc)
+}
+```
+
+Store data in new dataframe with a column indicating CRAN page as the source and export as csv file.
+
+```{r}
+cran_packages <- data.frame(package = all_ggplot_packages, description = all_ggplot_desc, downloads = downloads_count, CRAN = TRUE)
+
+head(cran_packages)
+write_csv(cran_packages, "generated_data/cran_packages.csv")
+```

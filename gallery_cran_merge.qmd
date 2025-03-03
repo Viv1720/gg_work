@@ -1,0 +1,28 @@
+---
+title: "gallery_cran_merge"
+format:
+  html:
+    embed-resources: true
+editor: visual
+---
+
+## Merge tidyverse gallery and cran page packages
+
+Read in and merge the data on ggplot packages from the gallery and from the cran webpage to store in a new dataframe, packages.
+
+```{r}
+gallery_packages <- read_csv("generated_data/gallery_packages.csv")
+
+cran_packages <- read_csv("generated_data/gg_work/cran_packages.csv")
+
+packages <- full_join(gallery_packages, cran_packages, by = c("package", "downloads"))
+```
+
+Sort by download count and save.
+
+```{r}
+sorted_packages <- arrange(packages, desc(downloads))
+
+head(sorted_packages)
+write_csv(sorted_packages, "generated_data/all_packages.csv")
+```

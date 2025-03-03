@@ -1,41 +1,86 @@
+---
+title: "ggplot_package_dc_plots"
+format:
+  html:
+    embed-resources: true
+editor: visual
+---
+
+## Plots to Visualize Download Trends
+
+The following code creates various plots that allow us to visualize different trends over time in the cran download counts of ggplot2 packages.
+
+First import the necessary packages.
+
+```{r}
 library(tidyverse)
 library(packageRank)
 library(plotly)
 library(lubridate)
+```
 
+Read in the packages stored in the 'all_packages.csv' file scraped from the tidyverse gallery and CRAN webpages in previous chapters. 
+
+```{r}
 sorted_packages <- read_csv("generated_data/all_packages.csv")
-top_packages <- c(sorted_packages$package[2:31]) #exclude ggplot2
+
+#top 30 packages by download count, excludes ggplot2
+top_packages <- c(sorted_packages$package[2:31])
+
+#all packages that can be found on CRAN (cran download count is not null)
 cran_packages <- c(sorted_packages$package[!is.na(sorted_packages$downloads)])
-  
+```
+
+Defines a 'get_cd_data' function that retrieves historical cran download count data using the cranDownloads function of packageRank.
+
+```{r}
 get_cd_data <- function(pkg) {
   cranDownloads(packages = pkg, to = 2025)$cranlogs.data
 }
+```
 
+Retrieves cran download data for top 30 packages and all cran packages.
+
+```{r}
 dc_top_packages <- map_dfr(top_packages, get_cd_data)
 dc_cran_packages <- map_dfr(cran_packages, get_cd_data)
+```
 
-#plot for time series of download count across dates
+Creates an interactive time series plot that shows daily download counts of the top 30 ggplot packages across time. 
+
+```{r}
 dc_history_plot <- ggplot(dc_top_packages, aes(x = date, y = count, color = package)) + 
   geom_smooth(se = FALSE, linewidth = .75) +
   labs(title = "Downloads Across Time", x = "Date", y = "Download Count")
 
+#uses plotly package to make plot interactive
 dc_history_plotly <- ggplotly(dc_history_plot)
 dc_history_plotly
+```
 
-#plot for max download count dates
+Creates an interactive plot that shows most downloaded dates and the respective download counts of the top 30 ggplot packages. 
+
+```{r}
+#finds max download count dates
 max_date_df <- dc_top_packages %>%
   group_by(package) %>%
   slice(which.max(count)) %>%
   select(package, max_date = date, max_downloads = count)
 
+#scatterplot of the most downloaded dates and respective download counts
 max_dc_plot <- ggplot(max_date_df, aes(x = max_date, y = max_downloads, color = package)) +
   geom_point() +
   labs(title = "Max Download Dates by Package", x = "Max Download Date", y = "Download Count")
 
+#uses plotly to be interactive
 max_dc_plotly <- ggplotly(max_dc_plot)
 max_dc_plotly
+```
 
-#plot for average download counts per date
+Creates an interactive plot that shows the average daily download count of all cran packages over time.
+
+```{r}
+#finds average download count for all dates
 average_dc <- dc_cran_packages %>%
   group_by(date) %>%
   summarize(average_dc = mean(count, na.rm = TRUE))
@@ -44,14 +89,20 @@ average_dc_plot <- ggplot(average_dc, aes(x = date, y = average_dc)) +
   geom_point(size = 0.05) +
   labs(title = "Average Downloads by Date", x = "Date", y = "Download Count")
 
+#uses plotly to be interactive
 average_dc_plotly <- ggplotly(average_dc_plot)
 average_dc_plotly
+```
 
-#create seasonal plots by month and day of week
+Creates boxplots that show the daily download count of the top 30 ggplot packages for every month and every day of the week.
+
+```{r}
+#determines separates daily download count data by month and by day of the week 
 seasonal_data <- dc_top_packages %>%
   mutate(month = month(date, label = TRUE),
          day_of_week = wday(date, label = TRUE))
 
+#create seasonal plots by month and day of week
 dc_monthly <- ggplot(seasonal_data, aes(x = month, y = count)) +
   geom_boxplot() +
   ylim(0, 5000) +
@@ -63,3 +114,5 @@ dc_daily <- ggplot(seasonal_data, aes(x = day_of_week, y = count)) +
   ylim(0, 5000) +
   labs(title = "Days of the Week in Downloads", x = "Day of Week", y = "Download Count")
 dc_daily
+```
+
