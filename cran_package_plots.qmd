@@ -19,7 +19,7 @@ library(plotly)
 library(lubridate)
 ```
 
-Read in the packages stored in the 'all_packages.csv' file scraped from the tidyverse gallery and CRAN webpages in previous chapters. 
+Read in the packages stored in the 'all_packages.csv' file scraped from the tidyverse gallery and CRAN webpages in previous chapters.
 
 ```{r}
 sorted_packages <- read_csv("generated_data/all_packages.csv")
@@ -46,11 +46,11 @@ dc_top_packages <- map_dfr(top_packages, get_cd_data)
 dc_cran_packages <- map_dfr(cran_packages, get_cd_data)
 ```
 
-Creates an interactive time series plot that shows daily download counts of the top 30 ggplot packages across time. 
+Creates an interactive time series plot that shows daily download counts of the top 30 ggplot packages across time.
 
 ```{r}
 dc_history_plot <- ggplot(dc_top_packages, aes(x = date, y = count, color = package)) + 
-  geom_smooth(se = FALSE, linewidth = .75) +
+  geom_smooth(se = FALSE, linewidth = .5) +
   labs(title = "Downloads Across Time", x = "Date", y = "Download Count")
 
 #uses plotly package to make plot interactive
@@ -58,7 +58,7 @@ dc_history_plotly <- ggplotly(dc_history_plot)
 dc_history_plotly
 ```
 
-Creates an interactive plot that shows most downloaded dates and the respective download counts of the top 30 ggplot packages. 
+Creates an interactive plot that shows most downloaded dates and the respective download counts of the top 30 ggplot packages.
 
 ```{r}
 #finds max download count dates
@@ -115,4 +115,3 @@ dc_daily <- ggplot(seasonal_data, aes(x = day_of_week, y = count)) +
   labs(title = "Days of the Week in Downloads", x = "Day of Week", y = "Download Count")
 dc_daily
 ```
-

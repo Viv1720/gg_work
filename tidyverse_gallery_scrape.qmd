@@ -13,6 +13,8 @@ The following code is designed to scrape the names of packages in the ggplot env
 First import the necessary packages:
 
 ```{r}
+#| results: hide
+
 library(tidyverse)
 library(rvest) #html webscraping
 library(packageRank) #to retrieve CRAN download counts

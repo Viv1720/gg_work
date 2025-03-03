@@ -11,9 +11,11 @@ editor: visual
 Read in and merge the data on ggplot packages from the gallery and from the cran webpage to store in a new dataframe, packages.
 
 ```{r}
+library(tidyverse)
+
 gallery_packages <- read_csv("generated_data/gallery_packages.csv")
 
-cran_packages <- read_csv("generated_data/gg_work/cran_packages.csv")
+cran_packages <- read_csv("generated_data/cran_packages.csv")
 
 packages <- full_join(gallery_packages, cran_packages, by = c("package", "downloads"))
 ```

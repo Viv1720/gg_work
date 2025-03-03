@@ -76,12 +76,15 @@ end_gg <- which(substr(desc, 1, 2) == "gh")[1] - 1
 desc_gg <- desc[first_gg:end_gg]
 
 #Select only descriptions (remove package names) by storing every other element
-gg_descriptions <- desc_gg[c(FALSE, TRUE)] 
+gg_descriptions <- desc_gg[c(FALSE, TRUE)]
 ```
 
 Remove descriptions of packages starting with gg but not relevant to ggplot2. Found manually and saved in 'non_ggplot_desc.csv' file.
 
 ```{r}
+#removes line breaks in descriptions to match csv file formatting
+gg_descriptions <- gsub("\n", " ", gg_descriptions)
+
 remove_desc <- read.csv("raw_data/non_ggplot_desc.csv")[[1]]
 
 ggplot_descriptions <- gg_descriptions[!gg_descriptions %in% remove_desc]
@@ -90,7 +93,7 @@ ggplot_descriptions <- gg_descriptions[!gg_descriptions %in% remove_desc]
 The following block of code finds additional ggplot packages that do not start with gg. The names and descriptions are saved in csv files that can be read in for the future.
 
 ```{r}
-#| echo: true
+#| eval: false
 
 #finds all non gg package names
 non_gg_desc <- desc[c(1:(first_gg-1), (end_gg+1):length(desc))] 
